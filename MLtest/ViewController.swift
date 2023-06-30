@@ -122,6 +122,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
             kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject
         ]
+        //comment
         var pxbuffer: CVPixelBuffer?
         let width = Int(image.extent.size.width)
         let height = Int(image.extent.size.height)
