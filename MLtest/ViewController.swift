@@ -33,6 +33,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 fatalError("Could not convert CIImage")
             }
             detect(image: ciimage)
+
         }
         imagePicker.dismiss(animated: true, completion: nil)
     }
@@ -72,12 +73,21 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
 
             // Create an input instance
             let input = EfficientNet_b3Input(x_1: multiArray)
+            // Print the input array
+
 
             // Perform the prediction
             if let output = try? model.prediction(input: input) {
+                // Print the input array
+                print("Input Array:")
+                for i in 0..<multiArray.count {
+                    let value = multiArray[i].floatValue
+                    print(value)
+                }
+                print("------------")
                 // HandlING the output multi array according to  model's specifics <implement here>
                 print("This is the output: ", output.var_1837)
-                
+
                 // Convert the MLMultiArray to a Swift Array
                 let multiArray = output.var_1837
                 let count = multiArray.count
@@ -90,7 +100,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 let exps = array.map { exp($0) }
                 let sum = exps.reduce(0, +)
                 let probabilities = exps.map { $0 / sum }
-                
+
                 // Get top 3 classes
                 var classProbabilities = zip(idxToClass.indices, probabilities).sorted(by: { $0.1 > $1.1 })
                 classProbabilities = Array(classProbabilities.prefix(3))
@@ -108,6 +118,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             print("Error loading CoreML model:", error)
         }
     }
+    
+    
+
 
 
     func resize(image: CIImage, newSize: CGSize) -> CIImage {
@@ -116,23 +129,62 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         return image.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
     }
 
+//    func convertImageToBuffer(_ image: CIImage) -> CVPixelBuffer? {
+//        let context = CIContext(options: nil)
+//        let attributes : [NSObject:AnyObject] = [
+//            kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
+//            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject
+//        ]
+//        var pxbuffer: CVPixelBuffer?
+//        let width = Int(image.extent.size.width)
+//        let height = Int(image.extent.size.height)
+//        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, attributes as CFDictionary?, &pxbuffer)
+//        let pxbufferUnwrapped = pxbuffer!
+//        let renderContext = CIContext(options: nil)
+//        renderContext.render(image, to: pxbufferUnwrapped)
+//        return pxbufferUnwrapped
+//    }
     func convertImageToBuffer(_ image: CIImage) -> CVPixelBuffer? {
         let context = CIContext(options: nil)
-        let attributes : [NSObject:AnyObject] = [
-            kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
-            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject
+        let attributes: [NSObject:AnyObject] = [
+            kCVPixelBufferCGImageCompatibilityKey: true as AnyObject,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true as AnyObject
         ]
         //comment
         var pxbuffer: CVPixelBuffer?
         let width = Int(image.extent.size.width)
         let height = Int(image.extent.size.height)
-        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, attributes as CFDictionary?, &pxbuffer)
+        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attributes as CFDictionary?, &pxbuffer)
         let pxbufferUnwrapped = pxbuffer!
-        let renderContext = CIContext(options: nil)
-        renderContext.render(image, to: pxbufferUnwrapped)
+        context.render(image, to: pxbufferUnwrapped)
         return pxbufferUnwrapped
     }
 
+//    func convertPixelBufferToMultiArray(pixelBuffer: CVPixelBuffer) throws -> MLMultiArray {
+//        // 1. Create a new MLMultiArray from the pixel buffer
+//        let imageSide = 256
+//        let pixelBufferWidth = CVPixelBufferGetWidth(pixelBuffer)
+//        let pixelBufferHeight = CVPixelBufferGetHeight(pixelBuffer)
+//        assert(pixelBufferWidth == imageSide && pixelBufferHeight == imageSide, "Input image needs to be \(imageSide)x\(imageSide).")
+//
+//        // 2. Create an MLMultiArray with the same shape as the input tensor
+//        let array = try MLMultiArray(shape: [1, 3, 256, 256], dataType: .float32)
+//
+//        // 3. Copy pixel data into array
+//        CVPixelBufferLockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
+//        let pixelData = CVPixelBufferGetBaseAddress(pixelBuffer)
+//        let sourceRowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
+//        let destination = UnsafeMutableBufferPointer<Float32>(start: array.dataPointer.assumingMemoryBound(to: Float32.self), count: array.count)
+//
+//        for row in 0..<pixelBufferHeight {
+//            let sourceRow = pixelData! + row * sourceRowBytes
+//            let destinationRow = destination.baseAddress! + row * pixelBufferWidth
+//            memcpy(destinationRow, sourceRow, sourceRowBytes)
+//        }
+//        CVPixelBufferUnlockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
+//        return array
+//    }
+    
     func convertPixelBufferToMultiArray(pixelBuffer: CVPixelBuffer) throws -> MLMultiArray {
         // 1. Create a new MLMultiArray from the pixel buffer
         let imageSide = 256
@@ -143,18 +195,27 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         // 2. Create an MLMultiArray with the same shape as the input tensor
         let array = try MLMultiArray(shape: [1, 3, 256, 256], dataType: .float32)
 
-        // 3. Copy pixel data into array
         CVPixelBufferLockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
-        let pixelData = CVPixelBufferGetBaseAddress(pixelBuffer)
-        let sourceRowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
-        let destination = UnsafeMutableBufferPointer<Float32>(start: array.dataPointer.assumingMemoryBound(to: Float32.self), count: array.count)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: 0)) }
 
-        for row in 0..<pixelBufferHeight {
-            let sourceRow = pixelData! + row * sourceRowBytes
-            let destinationRow = destination.baseAddress! + row * pixelBufferWidth
-            memcpy(destinationRow, sourceRow, sourceRowBytes)
+        // Assuming that the pixel buffer is in BGRA format
+        let sourceBuffer = CVPixelBufferGetBaseAddress(pixelBuffer)
+
+        // Populate the MLMultiArray
+        for y in 0..<pixelBufferHeight {
+            for x in 0..<pixelBufferWidth {
+                let pixel = sourceBuffer!.load(fromByteOffset: (y * pixelBufferWidth + x) * 4, as: UInt32.self)
+                let b = Float((pixel >> 0) & 255) / 255.0 // Blue component
+                let g = Float((pixel >> 8) & 255) / 255.0 // Green component
+                let r = Float((pixel >> 16) & 255) / 255.0 // Red component
+
+                // Place the pixel values into the MLMultiArray
+                array[[0, 0, y, x] as [NSNumber]] = NSNumber(value: b)
+                array[[0, 1, y, x] as [NSNumber]] = NSNumber(value: g)
+                array[[0, 2, y, x] as [NSNumber]] = NSNumber(value: r)
+            }
         }
-        CVPixelBufferUnlockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
+        
         return array
     }
 
