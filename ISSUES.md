@@ -1,5 +1,5 @@
 #Issues
-**Comparing what i did Swift with PyTorch**
+**Comparing what i did in Swift with PyTorch**
 
 1- Image Preprocessing: 
 PyTorch: The image is assumed to be preprocessed before being passed to the model. 
